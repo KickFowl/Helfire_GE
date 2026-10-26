@@ -83,3 +83,24 @@ add_dependencies(app shaders)
 add_custom_command(TARGET app POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy_directory
           "${CMAKE_BINARY_DIR}/shaders" "$<TARGET_FILE_DIR:app>/shaders")
+
+# ------------------------------------------------------------
+# Python (glslang's configure step needs an interpreter)
+# Order: VS's bundled Python -> system Python -> portable download
+# ------------------------------------------------------------
+file(GLOB VS_PYTHON_DIRS "$ENV{ProgramFiles}/Microsoft Visual Studio/Shared/Python3*_64")
+list(SORT VS_PYTHON_DIRS ORDER DESCENDING)
+if(VS_PYTHON_DIRS)
+  list(GET VS_PYTHON_DIRS 0 Python3_ROOT_DIR)
+endif()
+
+find_package(Python3 QUIET COMPONENTS Interpreter)
+if(NOT Python3_FOUND)
+  message(STATUS "No Python found, downloading portable Python")
+  FetchContent_Declare(python_embed
+    URL https://www.python.org/ftp/python/3.12.7/python-3.12.7-embed-amd64.zip
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+  FetchContent_MakeAvailable(python_embed)
+  set(Python3_EXECUTABLE "${python_embed_SOURCE_DIR}/python.exe"
+      CACHE FILEPATH "Portable Python" FORCE)
+endif()
