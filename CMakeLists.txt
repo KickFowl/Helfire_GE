@@ -1,59 +1,60 @@
 cmake_minimum_required(VERSION 3.24)
-project(MyVulkanApp LANGUAGES C CXX)
+project(Helfire_GE LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)   # group targets in the generated .sln
+ 
 include(FetchContent)
 set(FETCHCONTENT_QUIET OFF)
-
+ 
 # ------------------------------------------------------------
 # Libraries
 # ------------------------------------------------------------
- FetchContent_Declare(vulkan_headers
-     URL https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.3.296.zip
-     DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
-
-   FetchContent_Declare(volk
-     URL https://github.com/zeux/volk/archive/refs/tags/1.3.295.zip
-     DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
-
-   FetchContent_Declare(glm
-     URL https://github.com/g-truc/glm/archive/refs/tags/1.0.1.zip
-     DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
-
-   FetchContent_Declare(glslang
-     URL https://github.com/KhronosGroup/glslang/archive/refs/tags/16.6.0.zip
-     DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
-
+FetchContent_Declare(vulkan_headers
+  URL https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.3.296.zip
+  DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+ 
+FetchContent_Declare(volk
+  URL https://github.com/zeux/volk/archive/refs/tags/1.3.295.zip
+  DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+ 
+FetchContent_Declare(glm
+  URL https://github.com/g-truc/glm/archive/refs/tags/1.0.1.zip
+  DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+ 
+FetchContent_Declare(glslang
+  URL https://github.com/KhronosGroup/glslang/archive/refs/tags/16.6.0.zip
+  DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+ 
 # Exposes vkCreateWin32SurfaceKHR etc. through volk
 set(VOLK_STATIC_DEFINES VK_USE_PLATFORM_WIN32_KHR)
-
+ 
 FetchContent_MakeAvailable(vulkan_headers volk glm)
-
+ 
 # ------------------------------------------------------------
 # Python (glslang's StandAlone build needs an interpreter)
 # MUST come before glslang. Order: VS bundled Python -> portable download.
 # ------------------------------------------------------------
 file(GLOB VS_PYTHON_EXES "$ENV{ProgramFiles}/Microsoft Visual Studio/Shared/Python3*_64/python.exe")
 list(SORT VS_PYTHON_EXES ORDER DESCENDING)
-
+ 
 if(VS_PYTHON_EXES)
   list(GET VS_PYTHON_EXES 0 PY_EXE)
   message(STATUS "Using VS bundled Python: ${PY_EXE}")
 else()
   message(STATUS "No VS Python found, downloading portable Python")
-  FetchContent_Declare(python_embed
-    URL https://www.python.org/ftp/python/3.12.7/python-3.12.7-embed-amd64.zip
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+FetchContent_Declare(python_embed
+  URL https://www.python.org/ftp/python/3.12.7/python-3.12.7-embed-amd64.zip
+  DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
   FetchContent_MakeAvailable(python_embed)
   set(PY_EXE "${python_embed_SOURCE_DIR}/python.exe")
   message(STATUS "Using portable Python: ${PY_EXE}")
 endif()
-
+ 
 unset(_Python3_EXECUTABLE CACHE)
 set(Python3_EXECUTABLE "${PY_EXE}" CACHE FILEPATH "Python interpreter" FORCE)
 set(Python3_EXECUTABLE "${PY_EXE}")
-
+ 
 set(ENABLE_OPT OFF CACHE BOOL "" FORCE)              # skip SPIRV-Tools dependency
 set(ENABLE_HLSL OFF CACHE BOOL "" FORCE)             # GLSL only
 set(ENABLE_GLSLANG_BINARIES ON CACHE BOOL "" FORCE)  # need the command-line compiler
@@ -61,22 +62,33 @@ set(BUILD_EXTERNAL OFF CACHE BOOL "" FORCE)
 set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
 set(ENABLE_CTEST OFF CACHE BOOL "" FORCE)
 set(GLSLANG_TESTS OFF CACHE BOOL "" FORCE)
-
+ 
 FetchContent_MakeAvailable(glslang)
-
+ 
 # ------------------------------------------------------------
-# Application (every .cpp/.h under src/)
+# Application (every .cpp/.h under src/ and classes/)
 # ------------------------------------------------------------
 file(GLOB_RECURSE APP_SOURCES CONFIGURE_DEPENDS
   "${CMAKE_SOURCE_DIR}/src/*.cpp"
   "${CMAKE_SOURCE_DIR}/src/*.h"
-  "${CMAKE_SOURCE_DIR}/src/*.hpp")
-
+  "${CMAKE_SOURCE_DIR}/src/*.hpp"
+  "${CMAKE_SOURCE_DIR}/classes/*.cpp"
+  "${CMAKE_SOURCE_DIR}/classes/*.h"
+  "${CMAKE_SOURCE_DIR}/classes/*.hpp")
+ 
 add_executable(app WIN32 ${APP_SOURCES})   # remove WIN32 if you use a plain main() console app
 target_link_libraries(app PRIVATE volk glm::glm Vulkan::Headers)
 target_include_directories(volk PUBLIC "${vulkan_headers_SOURCE_DIR}/include")
-target_include_directories(app  PRIVATE "${vulkan_headers_SOURCE_DIR}/include")
-
+target_include_directories(app  PRIVATE
+  "${vulkan_headers_SOURCE_DIR}/include"
+  "${CMAKE_SOURCE_DIR}/classes/headers")
+ 
+# Visual Studio solution niceties (ignored by other generators)
+source_group(TREE "${CMAKE_SOURCE_DIR}" FILES ${APP_SOURCES})
+set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT app)
+set_target_properties(app PROPERTIES
+  VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:app>")
+ 
 # ------------------------------------------------------------
 # Shaders: compile shaders/*.vert|frag|comp -> <build>/shaders/<name>.spv
 # ------------------------------------------------------------
@@ -84,7 +96,7 @@ file(GLOB SHADER_SOURCES CONFIGURE_DEPENDS
   "${CMAKE_SOURCE_DIR}/shaders/*.vert"
   "${CMAKE_SOURCE_DIR}/shaders/*.frag"
   "${CMAKE_SOURCE_DIR}/shaders/*.comp")
-
+ 
 set(SPV_OUTPUTS "")
 foreach(SRC ${SHADER_SOURCES})
   get_filename_component(NAME ${SRC} NAME)
@@ -98,10 +110,10 @@ foreach(SRC ${SHADER_SOURCES})
     VERBATIM)
   list(APPEND SPV_OUTPUTS ${OUT})
 endforeach()
-
-add_custom_target(shaders DEPENDS ${SPV_OUTPUTS})
+ 
+add_custom_target(shaders DEPENDS ${SPV_OUTPUTS} SOURCES ${SHADER_SOURCES})
 add_dependencies(app shaders)
-
+ 
 # Copy compiled shaders next to the exe so the app can load "shaders/<name>.spv"
 add_custom_command(TARGET app POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy_directory
