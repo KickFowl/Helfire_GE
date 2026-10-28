@@ -2,6 +2,8 @@
 #include <volk.h>
 #include <windows.h>
 
+#include "WindowManager.h"
+
 int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
 {
 	if (volkInitialize() != VK_SUCCESS)

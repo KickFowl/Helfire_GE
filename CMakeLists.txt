@@ -9,20 +9,21 @@ set(FETCHCONTENT_QUIET OFF)
 # ------------------------------------------------------------
 # Libraries
 # ------------------------------------------------------------
-FetchContent_Declare(vulkan_headers
-  GIT_REPOSITORY https://github.com/KhronosGroup/Vulkan-Headers.git
-  GIT_TAG        v1.3.296
-  GIT_SHALLOW    TRUE)
+ FetchContent_Declare(vulkan_headers
+     URL https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.3.296.zip
+     DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
 
-FetchContent_Declare(volk
-  GIT_REPOSITORY https://github.com/zeux/volk.git
-  GIT_TAG        1.3.295
-  GIT_SHALLOW    TRUE)
+   FetchContent_Declare(volk
+     URL https://github.com/zeux/volk/archive/refs/tags/1.3.295.zip
+     DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
 
-FetchContent_Declare(glm
-  GIT_REPOSITORY https://github.com/g-truc/glm.git
-  GIT_TAG        1.0.1
-  GIT_SHALLOW    TRUE)
+   FetchContent_Declare(glm
+     URL https://github.com/g-truc/glm/archive/refs/tags/1.0.1.zip
+     DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+
+   FetchContent_Declare(glslang
+     URL https://github.com/KhronosGroup/glslang/archive/refs/tags/16.6.0.zip
+     DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
 
 # Exposes vkCreateWin32SurfaceKHR etc. through volk
 set(VOLK_STATIC_DEFINES VK_USE_PLATFORM_WIN32_KHR)
@@ -52,14 +53,6 @@ endif()
 unset(_Python3_EXECUTABLE CACHE)
 set(Python3_EXECUTABLE "${PY_EXE}" CACHE FILEPATH "Python interpreter" FORCE)
 set(Python3_EXECUTABLE "${PY_EXE}")
-
-# ------------------------------------------------------------
-# Shader compiler (glslang, built from source, pinned)
-# ------------------------------------------------------------
-FetchContent_Declare(glslang
-  GIT_REPOSITORY https://github.com/KhronosGroup/glslang.git
-  GIT_TAG        16.6.0
-  GIT_SHALLOW    TRUE)
 
 set(ENABLE_OPT OFF CACHE BOOL "" FORCE)              # skip SPIRV-Tools dependency
 set(ENABLE_HLSL OFF CACHE BOOL "" FORCE)             # GLSL only
